@@ -1,4 +1,4 @@
-package myrouter
+package myhttp
 
 import (
 	"net/http"
@@ -10,7 +10,7 @@ import (
 
 type Handle interface{}
 
-type Response struct {
+type ErrorResponse struct {
 	Status  int         `json:"status"`
 	Message string      `json:"message,omitempty"`
 	Data    interface{} `json:"data,omitempty"`
@@ -31,8 +31,8 @@ func (this *UrlParam) set(key, value string) {
 	this.data[key] = value
 }
 
-func ReturnError(status int, err error) *Response {
-	return &Response{
+func ReturnError(status int, err error) *ErrorResponse {
+	return &ErrorResponse{
 		Status:  status,
 		Message: err.Error(),
 	}
@@ -117,9 +117,9 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if !errs[0].IsNil() {
 		res, _ = json.Marshal(errs[0].Interface())
 	} else {
-		res, _ = json.Marshal(Response{
-			Status: 0,
-			Data:   response.Interface(),
+		res, _ = json.Marshal(map[string]interface{}{
+			"status": 0,
+			"data":   response.Interface(),
 		})
 	}
 	w.Header().Add("Content-Type", "application/json")
