@@ -5,13 +5,10 @@
 
 ## Handle Example
 ```
-func Handle(in *In, out *Out)*ErrorResponse{
-    return nil
-}
+func handler(in *struct, out *struct)*ErrorResponse{}
+
 ```
 Or
 ```
-func Handle(in *In, out *Out, urlParam *UrlParam)*ErrorResponse{
-    return nil
-}
+func handler(urlParam UrlParam, out *struct)*ErrorResponse{}
 ```
