@@ -2,10 +2,10 @@ package myhttp
 
 import (
 	"net/http"
-	"reflect"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"reflect"
+	"encoding/json"
 )
 
 type Handle interface{}
@@ -16,20 +16,6 @@ type ErrorResponse struct {
 	Data    interface{} `json:"data,omitempty"`
 }
 
-type UrlParam struct {
-	data map[string]string
-}
-
-func (this *UrlParam) Get(key string) string {
-	return this.data[key]
-}
-
-func (this *UrlParam) set(key, value string) {
-	if this.data == nil {
-		this.data = make(map[string]string)
-	}
-	this.data[key] = value
-}
 
 func ReturnError(status int, err error) *ErrorResponse {
 	return &ErrorResponse{
@@ -48,8 +34,9 @@ func New() *Router {
 	}
 }
 
-// POST: func handler(in *struct, out *struct)*ErrorResponse{}
-// GET:  func handler(urlParam UrlParam, out *struct)*ErrorResponse{}
+// func handler(c *Context) *ErrorResponse {}
+// func handler(in *struct, out *struct) *ErrorResponse {}
+// func handler(in *struct, out *struct, c *Context) *ErrorResponse {}
 
 func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	path := req.URL.Path
@@ -67,14 +54,26 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 	handlerType := reflect.TypeOf(handleFunc)
 	if handlerType.Kind() != reflect.Func {
-		panic("handler type must be func but " + handlerType.Name())
+		panic("handler type must be func " + handlerType.Name())
 	}
 	handler := reflect.ValueOf(handleFunc)
 	var args []reflect.Value
 	var response reflect.Value
 	switch handlerType.NumIn() {
 	case 1:
-
+		paramType := handlerType.In(0)
+		if paramType.Kind() == reflect.TypeOf(&Context{}).Kind() {
+			cxt := newContext(req,w)
+			args = append(args, reflect.ValueOf(cxt))
+		} else {
+			panic("When handler has one param, it must be ptr to Context" + handlerType.Name())
+		}
+		errs := handler.Call(args)
+		if !errs[0].IsNil() {
+			res, _ = json.Marshal(errs[0].Interface())
+			w.Header().Add("Content-Type", "application/json")
+			w.Write(res)
+		}
 	case 2:
 		paramType := handlerType.In(0)
 		if paramType.Kind() == reflect.Ptr {
@@ -82,24 +81,11 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			param = reflect.New(paramType.Elem())
 			json.Unmarshal(body, param.Interface())
 			args = append(args, reflect.ValueOf(param.Interface()))
-		} else if paramType.Kind() == reflect.TypeOf(UrlParam{}).Kind() {
-			urlParam := &UrlParam{}
-			for k, v := range req.URL.Query() {
-				if len(v) > 0 {
-					urlParam.set(k, v[0])
-				}
-			}
-			args = append(args, reflect.ValueOf(*urlParam))
-		} else {
-			panic("The first must be a pointer to the structure or UrlParam. " + handlerType.Name())
 		}
-
 		responseType := handlerType.In(1)
 		if responseType.Kind() == reflect.Ptr {
 			response = reflect.New(responseType.Elem())
 			args = append(args, reflect.ValueOf(response.Interface()))
-		} else {
-			panic("The second must be a pointer to the structure. " + handlerType.Name())
 		}
 		errs := handler.Call(args)
 		if !errs[0].IsNil() {
@@ -112,8 +98,41 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		}
 		w.Header().Add("Content-Type", "application/json")
 		w.Write(res)
-	case 3:
 
+	case 3:
+		paramType := handlerType.In(0)
+		if paramType.Kind() == reflect.Ptr {
+			var param reflect.Value
+			param = reflect.New(paramType.Elem())
+			json.Unmarshal(body, param.Interface())
+			args = append(args, reflect.ValueOf(param.Interface()))
+		} else {
+			panic("When handler has three param, first must be ptr to struct" + handlerType.Name())
+		}
+		responseType := handlerType.In(1)
+		if responseType.Kind() == reflect.Ptr {
+			response = reflect.New(responseType.Elem())
+			args = append(args, reflect.ValueOf(response.Interface()))
+		} else {
+			panic("When handler has three param, second must be ptr to struct" + handlerType.Name())
+		}
+		if paramType.Kind() == reflect.TypeOf(&Context{}).Kind() {
+			cxt := newContext(req,w)
+			args = append(args, reflect.ValueOf(cxt))
+		} else {
+			panic("When handler has three param, third must be ptr to Context" + handlerType.Name())
+		}
+		errs := handler.Call(args)
+		if !errs[0].IsNil() {
+			res, _ = json.Marshal(errs[0].Interface())
+		} else {
+			res, _ = json.Marshal(map[string]interface{}{
+				"status": 0,
+				"data":   response.Interface(),
+			})
+		}
+		w.Header().Add("Content-Type", "application/json")
+		w.Write(res)
 	}
 }
 

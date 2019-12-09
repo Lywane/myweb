@@ -5,10 +5,17 @@
 
 ## Handle Example
 ```
-func handler(in *struct, out *struct)*ErrorResponse{}
+func handler(c *Context) *ErrorResponse {}
+```
+
+or
 
 ```
-Or
+func handler(in *struct, out *struct) *ErrorResponse {}
 ```
-func handler(urlParam UrlParam, out *struct)*ErrorResponse{}
+
+or
+
+```
+func handler(in *struct, out *struct, c *Context) *ErrorResponse {}
 ```
