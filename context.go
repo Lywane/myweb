@@ -9,6 +9,7 @@ type Context struct {
 	Request        *http.Request
 	ResponseWriter http.ResponseWriter
 	metaData       map[string]interface{}
+	next           bool
 }
 
 func newContext(req *http.Request, w http.ResponseWriter) *Context {
@@ -17,6 +18,10 @@ func newContext(req *http.Request, w http.ResponseWriter) *Context {
 		ResponseWriter: w,
 		metaData:       make(map[string]interface{}),
 	}
+}
+
+func (this *Context) Next() {
+	this.next = true
 }
 
 func (this *Context) GetUrlParam(key string) string {

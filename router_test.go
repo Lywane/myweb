@@ -103,7 +103,7 @@ func validResult(t *testing.T, response []byte) {
 	}{}
 	err := json.Unmarshal(response, &res)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatal(response,err)
 	}
 	if res.Status != 0 {
 		t.Fatal(res.Message)
