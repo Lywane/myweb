@@ -9,19 +9,25 @@ type Context struct {
 	Request        *http.Request
 	ResponseWriter http.ResponseWriter
 	metaData       map[string]interface{}
-	next           bool
+	handlerIndex   int
+	handlerChain   HandlerChain
 }
 
-func newContext(req *http.Request, w http.ResponseWriter) *Context {
+func newContext(req *http.Request, w http.ResponseWriter, chain HandlerChain) *Context {
 	return &Context{
 		Request:        req,
 		ResponseWriter: w,
 		metaData:       make(map[string]interface{}),
+		handlerChain:   chain,
+		handlerIndex:   0,
 	}
 }
 
 func (this *Context) Next() {
-	this.next = true
+	this.handlerIndex++
+	if this.handlerIndex < len(this.handlerChain) {
+		processHandler(this.handlerChain[this.handlerIndex], this)
+	}
 }
 
 func (this *Context) GetUrlParam(key string) string {
@@ -54,4 +60,9 @@ func (this *Context) Json(data interface{}) {
 	})
 	this.ResponseWriter.Header().Add("Content-Type", "application/json")
 	this.ResponseWriter.Write(res)
+}
+
+func (this *Context) DieWithHttpStatus(status int) {
+	this.ResponseWriter.WriteHeader(status)
+	this.ResponseWriter.Header().Add("Content-Type", "text/plain;charset=UTF-8")
 }

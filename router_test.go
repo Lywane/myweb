@@ -5,9 +5,6 @@ import (
 	"testing"
 	"fmt"
 	"time"
-	"io"
-	"io/ioutil"
-	"bytes"
 	"encoding/json"
 )
 
@@ -116,34 +113,4 @@ func validResult(t *testing.T, response []byte) {
 
 		t.Fatal("hanler err", res.Data.Text)
 	}
-}
-
-func get(url string) ([]byte, error) {
-	return request(http.MethodGet, url, nil)
-}
-
-func post(url string, body []byte) ([]byte, error) {
-	data := bytes.NewReader(body)
-	return request(http.MethodPost, url, data)
-}
-
-func request(method, url string, body io.Reader) ([]byte, error) {
-	request, err := http.NewRequest(method, url, body)
-	if err != nil {
-		return []byte(""), err
-	}
-	if method == "POST" {
-		request.Header.Set("Content-Type", "application/json")
-	}
-	client := http.Client{Timeout: time.Duration(20 * time.Second)}
-	resp, err := client.Do(request)
-	if err != nil {
-		return []byte(""), err
-	}
-	defer resp.Body.Close()
-	ret, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return []byte(""), err
-	}
-	return ret, nil
 }

@@ -48,11 +48,6 @@ func New() *Router {
 func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	path := req.URL.Path
 	method := req.Method
-	var res []byte
-	body, err := ioutil.ReadAll(req.Body)
-	if err != nil {
-		panic(err)
-	}
 	pathHandlers, exist := r.trees[method]
 	if !exist {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -63,101 +58,106 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
-	cxt := newContext(req, w)
-	for _, handler := range handlers {
-		handlerType := reflect.TypeOf(handler)
-		if handlerType.Kind() != reflect.Func {
-			panic("handler type must be func " + handlerType.Name())
-		}
-		handler := reflect.ValueOf(handler)
-		var args []reflect.Value
-		var response reflect.Value
-		switch handlerType.NumIn() {
-		case 1:
-			paramType := handlerType.In(0)
-			if paramType.Kind() == reflect.TypeOf(&Context{}).Kind() {
-				args = append(args, reflect.ValueOf(cxt))
-			} else {
-				panic("When handler has one param, it must be ptr to Context" + handlerType.Name())
-			}
-			errs := handler.Call(args)
-			if cxt.next {
-				cxt.next = false
-				continue
-			} else {
-				if !errs[0].IsNil() {
-					res, _ = json.Marshal(errs[0].Interface())
-					w.Header().Add("Content-Type", "application/json")
-					w.Write(res)
-				}
-			}
-		case 2:
-			paramType := handlerType.In(0)
-			if paramType.Kind() == reflect.Ptr {
-				var param reflect.Value
-				param = reflect.New(paramType.Elem())
-				json.Unmarshal(body, param.Interface())
-				args = append(args, reflect.ValueOf(param.Interface()))
-			}
-			responseType := handlerType.In(1)
-			if responseType.Kind() == reflect.Ptr {
-				response = reflect.New(responseType.Elem())
-				args = append(args, reflect.ValueOf(response.Interface()))
-			}
-			errs := handler.Call(args)
+	cxt := newContext(req, w, handlers)
+	processHandler(handlers[0], cxt)
+}
 
+func processHandler(handlerFunc Handler, c *Context) {
+	var res []byte
+	body, err := ioutil.ReadAll(c.Request.Body)
+	if err != nil {
+		panic(err)
+	}
+	handlerType := reflect.TypeOf(handlerFunc)
+	if handlerType.Kind() != reflect.Func {
+		panic("handler type must be func " + handlerType.Name())
+	}
+	handler := reflect.ValueOf(handlerFunc)
+	var args []reflect.Value
+	var response reflect.Value
+	switch handlerType.NumIn() {
+	case 1:
+		paramType := handlerType.In(0)
+		if paramType.Kind() == reflect.TypeOf(&Context{}).Kind() {
+			args = append(args, reflect.ValueOf(c))
+		} else {
+			panic("When handler has one param, it must be ptr to Context" + handlerType.Name())
+		}
+		switch handlerType.NumOut() {
+		case 0:
+			handler.Call(args)
+		case 1:
+			errs := handler.Call(args)
 			if !errs[0].IsNil() {
 				res, _ = json.Marshal(errs[0].Interface())
-			} else {
-				res, _ = json.Marshal(map[string]interface{}{
-					"status": 0,
-					"data":   response.Interface(),
-				})
+				c.ResponseWriter.Header().Add("Content-Type", "application/json")
+				c.ResponseWriter.Write(res)
+				return
 			}
-			w.Header().Add("Content-Type", "application/json")
-			w.Write(res)
-
-		case 3:
-			paramType := handlerType.In(0)
-			if paramType.Kind() == reflect.Ptr {
-				var param reflect.Value
-				param = reflect.New(paramType.Elem())
-				json.Unmarshal(body, param.Interface())
-				args = append(args, reflect.ValueOf(param.Interface()))
-			} else {
-				panic("When handler has three param, first must be ptr to struct" + handlerType.Name())
-			}
-			responseType := handlerType.In(1)
-			if responseType.Kind() == reflect.Ptr {
-				response = reflect.New(responseType.Elem())
-				args = append(args, reflect.ValueOf(response.Interface()))
-			} else {
-				panic("When handler has three param, second must be ptr to struct" + handlerType.Name())
-			}
-			if paramType.Kind() == reflect.TypeOf(&Context{}).Kind() {
-				args = append(args, reflect.ValueOf(cxt))
-			} else {
-				panic("When handler has three param, third must be ptr to Context" + handlerType.Name())
-			}
-			errs := handler.Call(args)
-			if cxt.next {
-				cxt.next = false
-				continue
-			} else {
-				if !errs[0].IsNil() {
-					res, _ = json.Marshal(errs[0].Interface())
-				} else {
-					res, _ = json.Marshal(map[string]interface{}{
-						"status": 0,
-						"data":   response.Interface(),
-					})
-				}
-				w.Header().Add("Content-Type", "application/json")
-				w.Write(res)
-			}
+		default:
+			panic("Out must be 0 or 1")
 		}
-	}
+	case 2:
+		paramType := handlerType.In(0)
+		if paramType.Kind() == reflect.Ptr {
+			var param reflect.Value
+			param = reflect.New(paramType.Elem())
+			json.Unmarshal(body, param.Interface())
+			args = append(args, reflect.ValueOf(param.Interface()))
+		}
+		responseType := handlerType.In(1)
+		if responseType.Kind() == reflect.Ptr {
+			response = reflect.New(responseType.Elem())
+			args = append(args, reflect.ValueOf(response.Interface()))
+		}
+		errs := handler.Call(args)
 
+		if !errs[0].IsNil() {
+			res, _ = json.Marshal(errs[0].Interface())
+		} else {
+			res, _ = json.Marshal(map[string]interface{}{
+				"status": 0,
+				"data":   response.Interface(),
+			})
+		}
+		c.ResponseWriter.Header().Add("Content-Type", "application/json")
+		c.ResponseWriter.Write(res)
+
+	case 3:
+		paramType := handlerType.In(0)
+		if paramType.Kind() == reflect.Ptr {
+			var param reflect.Value
+			param = reflect.New(paramType.Elem())
+			json.Unmarshal(body, param.Interface())
+			args = append(args, reflect.ValueOf(param.Interface()))
+		} else {
+			panic("When handler has three param, first must be ptr to struct" + handlerType.Name())
+		}
+		responseType := handlerType.In(1)
+		if responseType.Kind() == reflect.Ptr {
+			response = reflect.New(responseType.Elem())
+			args = append(args, reflect.ValueOf(response.Interface()))
+		} else {
+			panic("When handler has three param, second must be ptr to struct" + handlerType.Name())
+		}
+		if paramType.Kind() == reflect.TypeOf(&Context{}).Kind() {
+			args = append(args, reflect.ValueOf(c))
+		} else {
+			panic("When handler has three param, third must be ptr to Context" + handlerType.Name())
+		}
+		errs := handler.Call(args)
+		if !errs[0].IsNil() {
+			res, _ = json.Marshal(errs[0].Interface())
+		} else {
+			res, _ = json.Marshal(map[string]interface{}{
+				"status": 0,
+				"data":   response.Interface(),
+			})
+		}
+		c.ResponseWriter.Header().Add("Content-Type", "application/json")
+		c.ResponseWriter.Write(res)
+		return
+	}
 }
 
 func (r *Router) Group(path string) *Router {
