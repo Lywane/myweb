@@ -2,26 +2,54 @@ package myhttp
 
 import (
 	syslog "log"
+	"os"
+	"fmt"
 )
 
 type loggerer interface {
 	Log(tag string, msg ...interface{})
 }
 
-type logger struct{}
+type cmdLogger struct{}
+
+type fileLogger struct {
+	Dir  string `json:"dir"`
+	Name string `json:"name"`
+}
 
 var log loggerer
 
 func init() {
-	log = &logger{}
+	log = &cmdLogger{}
 }
 
 func SetLogger(logger loggerer) {
 	log = logger
 }
 
-func (lg *logger) Log(tag string, msg ...interface{}) {
-	syslog.Println(append([]interface{}{tag}, msg...))
+func (clg *cmdLogger) Log(tag string, msg ...interface{}) {
+	syslog.Println(append([]interface{}{tag}, msg...)...)
+}
+
+func NewFileLogger(name, dir string) *fileLogger {
+	return &fileLogger{
+		Dir:  dir,
+		Name: name,
+	}
+}
+
+func (flg *fileLogger) Log(tag string, msg ...interface{}) {
+	f, err := os.OpenFile(flg.Dir+flg.Name, os.O_CREATE|os.O_APPEND, 0x666)
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+	loger := syslog.New(f, "", syslog.Ldate|syslog.Ltime)
+	message := tag
+	for _, m := range msg {
+		message += fmt.Sprintf(" %v", m)
+	}
+	loger.Println(message)
 }
 
 func Info(msg ...interface{}) {

@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 )
 
-const DefaultDateFM string = "2006-01-02"
 
 type In struct {
 	Name     string `json:"name"`
@@ -57,28 +56,28 @@ func TestHttp(t *testing.T) {
 	router.GET("/hello", HelloGet)
 	go http.ListenAndServe(":8080", router)
 }
-//
-//func TestRouter_POST(t *testing.T) {
-//	url := "http://127.0.0.1:8080/hello"
-//	data := `{"name":"Lywane","birthday":"1994-06-25"}`
-//
-//	response, err := post(url, []byte(data))
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//	validResult(t, response)
-//}
-//
-//func TestRouter_POST2(t *testing.T) {
-//	url := "http://127.0.0.1:8080/hello2?birthday=1994-06-25"
-//	data := `{"name":"Lywane"}`
-//
-//	response, err := post(url, []byte(data))
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//	validResult(t, response)
-//}
+
+func TestRouter_POST(t *testing.T) {
+	url := "http://127.0.0.1:8080/hello"
+	data := `{"name":"Lywane","birthday":"1994-06-25"}`
+
+	response, err := post(url, []byte(data))
+	if err != nil {
+		t.Fatal(err)
+	}
+	validResult(t, response)
+}
+
+func TestRouter_POST2(t *testing.T) {
+	url := "http://127.0.0.1:8080/hello2?birthday=1994-06-25"
+	data := `{"name":"Lywane"}`
+
+	response, err := post(url, []byte(data))
+	if err != nil {
+		t.Fatal(err)
+	}
+	validResult(t, response)
+}
 
 func TestRouter_GET(t *testing.T) {
 	url := "http://127.0.0.1:8080/hello?name=Lywane&birthday=1994-06-25"

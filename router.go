@@ -6,6 +6,11 @@ import (
 	"encoding/json"
 )
 
+const (
+	DefaultDateFM string = "2006-01-02"
+	DefaultDateTimeFM string = "2006-01-02 15:04:05"
+)
+
 type Handler interface{}
 
 type HandlerChain []Handler
