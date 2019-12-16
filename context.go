@@ -2,15 +2,24 @@ package myhttp
 
 import (
 	"net/http"
+	"io/ioutil"
 	"encoding/json"
 )
 
 type Context struct {
 	Request        *http.Request
 	ResponseWriter http.ResponseWriter
-	metaData       map[string]interface{}
-	handlerIndex   int
-	handlerChain   HandlerChain
+
+	metaData     map[string]interface{}
+	handlerIndex int
+	handlerChain HandlerChain
+	hasReadBody  bool
+	body         []byte
+	hasResponse  bool
+
+	responseData []byte
+	httpStatus   int
+	contentType  string
 }
 
 func newContext(req *http.Request, w http.ResponseWriter, chain HandlerChain) *Context {
@@ -20,13 +29,14 @@ func newContext(req *http.Request, w http.ResponseWriter, chain HandlerChain) *C
 		metaData:       make(map[string]interface{}),
 		handlerChain:   chain,
 		handlerIndex:   0,
+		httpStatus:     http.StatusOK,
 	}
 }
 
 func (this *Context) Next() {
 	this.handlerIndex++
 	if this.handlerIndex < len(this.handlerChain) {
-		processHandler(this.handlerChain[this.handlerIndex], this)
+		this.processHandler()
 	}
 }
 
@@ -58,11 +68,35 @@ func (this *Context) Json(data interface{}) {
 		"status": 0,
 		"data":   data,
 	})
-	this.ResponseWriter.Header().Add("Content-Type", "application/json")
-	this.ResponseWriter.Write(res)
+	this.responseData = res
+	this.hasResponse = true
+	this.contentType = "application/json;charset=UTF-8"
+
 }
 
 func (this *Context) DieWithHttpStatus(status int) {
-	this.ResponseWriter.WriteHeader(status)
-	this.ResponseWriter.Header().Add("Content-Type", "text/plain;charset=UTF-8")
+	this.httpStatus = status
+	this.hasResponse = true
+	this.contentType = "text/plain;charset=UTF-8"
+}
+
+func (this *Context) response() {
+	if this.contentType != "" {
+		this.ResponseWriter.Header().Add("Content-Type", this.contentType)
+	}
+	if this.httpStatus == http.StatusOK {
+		this.ResponseWriter.Write(this.responseData)
+	} else {
+		this.ResponseWriter.WriteHeader(this.httpStatus)
+	}
+
+}
+
+func (this *Context) Body() []byte {
+	if !this.hasReadBody {
+		body, _ := ioutil.ReadAll(this.Request.Body)
+		this.hasReadBody = true
+		this.body = body
+	}
+	return this.body
 }

@@ -4,7 +4,19 @@
 
 ## MiddleWare
 
+## Log
+Todo
+
+## Valid
+Todo
+
 ## Handle Example
+```
+func handler(c *Context) {}
+```
+
+or
+
 ```
 func handler(c *Context) *ErrorResponse {}
 ```
