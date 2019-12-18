@@ -1,4 +1,4 @@
-package myhttp
+package http
 
 import (
 	"io"

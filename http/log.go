@@ -1,4 +1,4 @@
-package myhttp
+package http
 
 import (
 	syslog "log"
@@ -43,7 +43,6 @@ func (flg *fileLogger) Log(tag string, msg ...interface{}) {
 	if err != nil {
 		panic(err)
 	}
-	defer f.Close()
 	loger := syslog.New(f, "", syslog.Ldate|syslog.Ltime)
 	message := tag
 	for _, m := range msg {
