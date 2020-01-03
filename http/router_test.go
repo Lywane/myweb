@@ -61,7 +61,7 @@ func TestRouter_POST(t *testing.T) {
 	url := "http://127.0.0.1:8080/hello"
 	data := `{"name":"Lywane","birthday":"1994-06-25"}`
 
-	response, err := post(url, []byte(data))
+	response, err := Post(url, []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -72,7 +72,7 @@ func TestRouter_POST2(t *testing.T) {
 	url := "http://127.0.0.1:8080/hello2?birthday=1994-06-25"
 	data := `{"name":"Lywane"}`
 
-	response, err := post(url, []byte(data))
+	response, err := Post(url, []byte(data))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,7 +82,7 @@ func TestRouter_POST2(t *testing.T) {
 func TestRouter_GET(t *testing.T) {
 	url := "http://127.0.0.1:8080/hello?name=Lywane&birthday=1994-06-25"
 
-	response, err := get(url)
+	response, err := Get(url)
 	if err != nil {
 		t.Fatal(err)
 	}

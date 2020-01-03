@@ -10,16 +10,16 @@ import (
 
 const DefaultTimeout = time.Duration(10 * time.Second)
 
-func get(url string, timeout ...time.Duration) ([]byte, error) {
-	return request(http.MethodGet, url, nil, timeout...)
+func Get(url string, timeout ...time.Duration) ([]byte, error) {
+	return Request(http.MethodGet, url, nil, timeout...)
 }
 
-func post(url string, body []byte, timeout ...time.Duration) ([]byte, error) {
+func Post(url string, body []byte, timeout ...time.Duration) ([]byte, error) {
 	data := bytes.NewReader(body)
-	return request(http.MethodPost, url, data, timeout...)
+	return Request(http.MethodPost, url, data, timeout...)
 }
 
-func request(method, url string, body io.Reader, timeout ...time.Duration) ([]byte, error) {
+func Request(method, url string, body io.Reader, timeout ...time.Duration) ([]byte, error) {
 	request, err := http.NewRequest(method, url, body)
 	if err != nil {
 		return []byte(""), err
